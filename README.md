@@ -55,6 +55,7 @@ pytest -v
 10. **`test_delete_warehouse_with_reserved_fbs_and_ship_after_archive`** — удаление ФФ, на котором одновременно есть свободный остаток и активный резерв FBS, с последующей отгрузкой зарезервированного заказа из архива.
 11. **`test_cyrillic_case_insensitive_warehouse_duplicates_and_idempotent_rename`** — регистронезависимая защита от дублей кириллических названий складов (`Север` / `север`) и идемпотентное переименование.
 12. **`test_split_fulfillment_idempotency_key_and_cross_operation_conflict`** — идемпотентность авто-разделения (`Split Fulfillment`) по `idempotency_key` и защита от переиспользования ключа между разными типами операций.
+13. **`test_ui_palette_apple_design_and_static_assets`** — проверка цветовой палитры интерфейса (соответствие референсам ТЗ CheckStock / «Ракета» v0.5), правил доступности (`prefers-reduced-motion`, `prefers-contrast`) и клиентского контроллера.
 
 ---
 

@@ -99,6 +99,7 @@ pytest -v
 ```text
 ├── AGENTS.md                  # Архитектура ИИ-оркестрации (Main Agent + Subagents) и правила Deep Modules
 ├── README.md                  # Документация по запуску, проверкам и ключевым решениям
+├── .env.example               # Пример переменных окружения (PostgreSQL / SQLite)
 ├── Dockerfile                 # Сборка контейнера FastAPI-приложения
 ├── docker-compose.yml         # Оркестрация PostgreSQL 16 + FastAPI Web
 ├── requirements.txt           # Зависимости Python

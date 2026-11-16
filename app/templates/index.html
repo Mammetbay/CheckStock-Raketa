@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CheckStock — Где сейчас товар? (ФФ · FBS · FBO)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: {
+              bg: '#F6F5F1',
+              panel: '#EFEFEA',
+              warm: '#F4EFEA',
+              card: '#FFFFFF',
+              subtle: '#F8F9F8',
+              border: '#E4E7E4',
+              borderStrong: '#CFD6CE',
+            },
+            forest: {
+              50: '#EDF3EE',
+              100: '#DCEAE0',
+              600: '#1E5638',
+              700: '#1C5D3A',
+              800: '#143F27',
+              900: '#0F2E1C',
+            },
+            terra: {
+              50: '#FAF0EC',
+              100: '#F4DFD8',
+              400: '#DC8E7B',
+              600: '#D95338',
+              700: '#B53F28',
+              800: '#7D2B19',
+            },
+            lavender: {
+              50: '#EEF0FF',
+              100: '#E0E4FF',
+              600: '#4F46E5',
+              700: '#3730A3',
+            },
+            ink: {
+              primary: '#1D2421',
+              secondary: '#56615A',
+              muted: '#859089',
+              zero: '#B5BEB8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+      font-optical-sizing: auto;
+      color: #1D2421;
+      background-color: #F6F5F1;
+    }
+
+    body {
+      background-color: #F6F5F1;
+      color: #1D2421;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Optical sizing & size-specific tracking (Apple WWDC Typography) */
+    .display-title {
+      letter-spacing: -0.025em;
+      line-height: 1.12;
+      font-optical-sizing: auto;
+    }
+
+    .display-accent-italic {
+      font-family: Georgia, "Times New Roman", "New York", ui-serif, serif;
+      font-style: italic;
+      font-weight: 400;
+      color: #D95338;
+      letter-spacing: -0.01em;
+    }
+
+    .section-title {
+      letter-spacing: -0.015em;
+      line-height: 1.25;
+    }
+
+    .eyebrow-track {
+      letter-spacing: 0.06em;
+    }
+
+    .num-tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Apple-style translucent floating header */
+    .apple-header {
+      background: rgba(246, 245, 241, 0.84);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid rgba(228, 231, 228, 0.9);
+    }
+
+    /* Instant pointer-down response (Apple WWDC Designing Fluid Interfaces) */
+    .btn-fluid {
+      transition: transform 90ms cubic-bezier(0.22, 1, 0.36, 1),
+                  background-color 140ms ease,
+                  border-color 140ms ease,
+                  color 140ms ease,
+                  box-shadow 140ms ease;
+      will-change: transform;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    .btn-fluid:active {
+      transform: scale(0.97);
+    }
+
+    /* Critically damped spring-like surface transition */
+    .spring-surface {
+      transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: top center;
+    }
+
+    /* Subtle custom scrollbars for inner lists */
+    .clean-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .clean-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .clean-scroll::-webkit-scrollbar-thumb {
+      background: #CFD6CE;
+      border-radius: 9999px;
+    }
+
+    /* Accessibility: Reduced motion, reduced transparency, and high contrast */
+    @media (prefers-reduced-motion: reduce) {
+      .btn-fluid,
+      .spring-surface {
+        transition: opacity 150ms ease !important;
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .apple-header {
+        background: #F6F5F1 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+    }
+    @media (prefers-contrast: more) {
+      .apple-header {
+        background: #FFFFFF !important;
+        border-bottom: 2px solid #1D2421 !important;
+      }
+      .border-paper-border {
+        border-color: #859089 !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- Translucent Top Bar -->
+  <header class="apple-header sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 text-[11px] font-bold uppercase eyebrow-track text-forest-600">
+          <span class="inline-block w-1 h-3.5 bg-terra-600 rounded-sm"></span>
+          <span>CHECKSTOCK / РАКЕТА v0.5</span>
+          <span class="text-ink-muted font-medium">· Складское ядро</span>
+        </div>
+        <div class="flex flex-wrap items-baseline gap-3 mt-0.5">
+          <h1 class="text-xl sm:text-2xl font-semibold text-ink-primary display-title">
+            Где сейчас <span class="display-accent-italic">товар?</span>
+          </h1>
+          <div class="hidden md:flex items-center gap-1.5">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-forest-50 text-forest-600">ФФ · FBS · FBO</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-forest-50 text-forest-600">Python · FastAPI · PostgreSQL</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Live Reconciliation Pill -->
+        <div id="reconciliation-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-forest-50 text-forest-600 border border-forest-100 num-tabular">
+          <span class="w-2 h-2 rounded-full bg-forest-600"></span>
+          <span>Сверка остатков: сходится</span>
+        </div>
+
+        <button onclick="resetDemoData()" class="btn-fluid px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-paper-borderStrong bg-white hover:bg-paper-subtle text-ink-primary shadow-sm" title="Вернуть исходные данные из ТЗ: SKU-101 (10/6), SKU-102 (5/0), SKU-103 (0/4)">
+          Сбросить к данным ТЗ
+        </button>
+        <button onclick="refreshDashboard()" class="btn-fluid px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-forest-600 hover:bg-forest-700 text-white shadow-sm">
+          Обновить
+        </button>
+        <a href="/docs" target="_blank" class="btn-fluid px-3 py-1.5 text-xs font-medium rounded-xl border border-paper-border bg-paper-subtle hover:bg-white text-ink-secondary">
+          API /docs
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+
+    <!-- Instant Feedback Banner -->
+    <div id="toast-banner" class="hidden spring-surface rounded-2xl border px-4 py-3 text-sm" role="status" aria-live="polite"></div>
+
+    <!-- Shortage Resolution Drawer (Appears on local/global shortage) -->
+    <div id="shortage-panel" class="hidden spring-surface rounded-2xl border border-terra-400 bg-paper-warm p-5 space-y-4 shadow-sm" role="region" aria-label="Обработка нехватки товара">
+      <div class="flex items-start justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 text-[11px] font-bold uppercase eyebrow-track rounded-md bg-terra-100 text-terra-800">
+              Обработка нехватки на ФФ
+            </span>
+            <span id="shortage-code-badge" class="text-xs font-mono text-terra-700"></span>
+          </div>
+          <h3 id="shortage-title" class="text-base font-bold text-ink-primary section-title"></h3>
+          <p id="shortage-message" class="text-xs text-ink-secondary leading-relaxed"></p>
+        </div>
+        <button onclick="closeShortagePanel()" class="btn-fluid text-ink-secondary hover:text-ink-primary text-xs font-semibold px-2.5 py-1 rounded-lg bg-white border border-paper-border">
+          Закрыть ✕
+        </button>
+      </div>
+
+      <div id="shortage-metrics" class="grid grid-cols-2 sm:grid-cols-4 gap-3 num-tabular"></div>
+
+      <div id="shortage-actions" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1"></div>
+    </div>
+
+    <!-- Raketa-style Summary Strip: Where is the stock right now? -->
+    <section class="bg-paper-panel rounded-2xl p-3 border border-paper-border">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 num-tabular">
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">Сумма приходов</div>
+          <div id="kpi-receipts" class="text-xl font-bold text-ink-primary mt-0.5">0 шт.</div>
+          <div class="text-[11px] text-ink-muted mt-0.5">Контрольный баланс</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">Доступно на ФФ</div>
+          <div id="kpi-available" class="text-xl font-bold text-forest-600 mt-0.5">0 шт.</div>
+          <div id="kpi-physical-sub" class="text-[11px] text-ink-muted mt-0.5">Физически на ФФ: 0 шт.</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">В резерве FBS</div>
+          <div id="kpi-reserved-fbs" class="text-xl font-bold text-ink-primary mt-0.5">0 шт.</div>
+          <div class="text-[11px] text-ink-muted mt-0.5">Блок на складе ФФ</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">В пути между ФФ</div>
+          <div id="kpi-transit-ff" class="text-xl font-bold text-ink-primary mt-0.5">0 шт.</div>
+          <div class="text-[11px] text-ink-muted mt-0.5">До приёмки складом</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">В пути на FBO</div>
+          <div id="kpi-fbo-total" class="text-xl font-bold text-ink-primary mt-0.5">0 шт.</div>
+          <div id="kpi-fbo-sub" class="text-[11px] text-ink-muted mt-0.5">Принято МП: 0 шт.</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-paper-border px-3.5 py-3">
+          <div class="text-[11px] font-medium text-ink-secondary">К клиенту по FBS</div>
+          <div id="kpi-shipped-fbs" class="text-xl font-bold text-ink-primary mt-0.5">0 шт.</div>
+          <div id="kpi-archived-sub" class="text-[11px] text-ink-muted mt-0.5">Архив ФФ: 0 шт.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLOCK 01: Unified Stock Matrix -->
+    <section class="bg-white rounded-2xl border border-paper-border overflow-hidden">
+      <div class="px-5 py-4 border-b border-paper-border flex flex-wrap items-baseline justify-between gap-3">
+        <div class="flex items-baseline gap-3">
+          <span class="text-2xl font-light text-terra-600 select-none num-tabular">01</span>
+          <div>
+            <h2 class="text-base font-bold text-ink-primary section-title">Экран остатков</h2>
+            <p class="text-xs text-ink-secondary mt-0.5">
+              По каждому артикулу и ФФ: физически на складе, доступно и в резерве FBS. Отдельно — товар в пути между ФФ, на склад маркетплейса по FBO и к клиенту по FBS.
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-[11px] text-ink-secondary">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-xs bg-forest-50 border border-forest-100"></span>Доступно / Принято</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-xs bg-terra-50 border border-terra-100"></span>Резерв FBS / Архив</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-xs bg-lavender-50 border border-lavender-100"></span>В пути (ФФ / FBO)</span>
+          <span class="hidden xl:inline text-ink-muted font-mono" id="reconciliation-formula-text"></span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left border-collapse num-tabular">
+          <thead id="stock-matrix-head" class="bg-forest-50 text-forest-800 text-[11px] uppercase eyebrow-track border-b border-paper-border">
+          </thead>
+          <tbody id="stock-matrix-body" class="divide-y divide-paper-border">
+          </tbody>
+          <tfoot id="stock-matrix-foot" class="bg-forest-50/70 border-t border-paper-borderStrong font-semibold text-xs">
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- Archived (Deleted) Warehouses Callout -->
+    <section id="archived-warehouses-section" class="hidden spring-surface bg-paper-warm rounded-2xl border border-terra-100 p-5 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span class="text-[11px] font-bold uppercase eyebrow-track px-2 py-0.5 rounded bg-terra-100 text-terra-800">
+            Сохранение остатков при удалении ФФ
+          </span>
+          <h3 class="text-sm font-bold text-ink-primary mt-1">
+            Удалённые (архивные) склады ФФ — где числится сохранённый товар
+          </h3>
+          <p class="text-xs text-ink-secondary">
+            При удалении ФФ остатки и история операций сохранены. Свободный остаток можно перевести на любой действующий ФФ.
+          </p>
+        </div>
+      </div>
+      <div id="archived-warehouses-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </section>
+
+    <!-- BLOCKS 02 & 03: Two-Column Operational Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- BLOCK 02: Warehouses, Receipts, and FF Transfers -->
+      <section class="lg:col-span-6 bg-white rounded-2xl border border-paper-border p-5 space-y-4">
+        <div class="flex items-baseline gap-3 border-b border-paper-border pb-3.5">
+          <span class="text-2xl font-light text-terra-600 select-none num-tabular">02</span>
+          <div>
+            <h2 class="text-base font-bold text-ink-primary section-title">Склады и движения</h2>
+            <p class="text-xs text-ink-secondary mt-0.5">
+              Добавляйте, переименовывайте и удаляйте ФФ. Оформляйте приход, отправку и приёмку перемещений между ФФ.
+            </p>
+          </div>
+        </div>
+
+        <!-- 2.1. Warehouses (Add / Rename / Delete with Stock Preservation) -->
+        <div class="bg-paper-subtle rounded-xl p-4 border border-paper-border space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-xs font-bold uppercase eyebrow-track text-forest-700">Склады фулфилмента (ФФ)</h3>
+            <span class="text-[11px] text-ink-muted">Сохранение остатков при удалении</span>
+          </div>
+
+          <form onsubmit="handleCreateWarehouse(event)" class="flex gap-2">
+            <input id="new-warehouse-name" type="text" required placeholder="Название нового ФФ (напр., Запад)"
+              class="flex-1 rounded-xl border border-paper-borderStrong px-3 py-1.5 text-xs sm:text-sm bg-white focus:outline-none focus:border-forest-600" />
+            <button type="submit" class="btn-fluid px-3.5 py-1.5 rounded-xl bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold">
+              + Добавить ФФ
+            </button>
+          </form>
+
+          <div id="warehouses-manage-list" class="space-y-2"></div>
+        </div>
+
+        <!-- 2.2. Goods Receipt (Приход товара на ФФ) -->
+        <form onsubmit="handleCreateReceipt(event)" class="bg-paper-subtle rounded-xl p-4 border border-paper-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase eyebrow-track text-forest-700">Приход товара на ФФ</h3>
+            <span class="text-[11px] text-ink-muted">+ Физически · + Доступно</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-5">
+              <label for="receipt-product" class="block text-[11px] font-medium text-ink-secondary mb-1">Артикул</label>
+              <select id="receipt-product" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-forest-600"></select>
+            </div>
+            <div class="sm:col-span-4">
+              <label for="receipt-warehouse" class="block text-[11px] font-medium text-ink-secondary mb-1">Склад ФФ</label>
+              <select id="receipt-warehouse" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-forest-600"></select>
+            </div>
+            <div class="sm:col-span-3">
+              <label for="receipt-qty" class="block text-[11px] font-medium text-ink-secondary mb-1">Кол-во (шт.)</label>
+              <input id="receipt-qty" type="number" min="1" value="5" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white num-tabular focus:outline-none focus:border-forest-600" />
+            </div>
+          </div>
+
+          <details class="text-xs text-ink-secondary">
+            <summary class="cursor-pointer select-none text-[11px] text-ink-muted hover:text-ink-primary">
+              Дополнительно: комментарий и ключ идемпотентности
+            </summary>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+              <input id="receipt-note" type="text" placeholder="Комментарий к поставке"
+                class="rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white" />
+              <input id="receipt-idem-key" type="text" placeholder="idempotency_key (опционально)"
+                class="rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white font-mono" />
+            </div>
+          </details>
+
+          <button type="submit" class="btn-fluid w-full py-2 rounded-xl bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold">
+            Оформить приход на ФФ
+          </button>
+        </form>
+
+        <!-- 2.3. Inter-Warehouse Transfers (Перемещения между ФФ) -->
+        <div class="bg-paper-subtle rounded-xl p-4 border border-paper-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase eyebrow-track text-forest-700">Перемещение между ФФ</h3>
+            <span class="text-[11px] text-ink-muted">Отправка (В пути) · Приёмка</span>
+          </div>
+
+          <form onsubmit="handleCreateTransfer(event)" class="space-y-2.5">
+            <div class="grid grid-cols-2 sm:grid-cols-12 gap-2">
+              <div class="col-span-2 sm:col-span-4">
+                <label for="transfer-product" class="block text-[11px] font-medium text-ink-secondary mb-1">Товар</label>
+                <select id="transfer-product" required class="w-full rounded-xl border border-paper-borderStrong px-2 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="col-span-1 sm:col-span-3">
+                <label for="transfer-from" class="block text-[11px] font-medium text-ink-secondary mb-1">Откуда</label>
+                <select id="transfer-from" onchange="handleTransferWarehouseChange('from')" required class="w-full rounded-xl border border-paper-borderStrong px-2 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="col-span-1 sm:col-span-3">
+                <label for="transfer-to" class="block text-[11px] font-medium text-ink-secondary mb-1">Куда</label>
+                <select id="transfer-to" onchange="handleTransferWarehouseChange('to')" required class="w-full rounded-xl border border-paper-borderStrong px-2 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="col-span-2 sm:col-span-2">
+                <label for="transfer-qty" class="block text-[11px] font-medium text-ink-secondary mb-1">Кол-во</label>
+                <input id="transfer-qty" type="number" min="1" value="3" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white num-tabular" />
+              </div>
+            </div>
+            <button type="submit" class="btn-fluid w-full py-2 rounded-xl bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold">
+              Отправить перемещение между ФФ
+            </button>
+          </form>
+
+          <div class="pt-1">
+            <div class="text-[11px] font-medium text-ink-secondary mb-1.5">Активные и завершённые перемещения:</div>
+            <div id="transfers-list" class="space-y-1.5 max-h-56 overflow-y-auto clean-scroll pr-0.5"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BLOCK 03: FBS & FBO Shipments + Shortage Handling -->
+      <section class="lg:col-span-6 bg-white rounded-2xl border border-paper-border p-5 space-y-4">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-paper-border pb-3.5">
+          <div class="flex items-baseline gap-3">
+            <span class="text-2xl font-light text-terra-600 select-none num-tabular">03</span>
+            <div>
+              <h2 class="text-base font-bold text-ink-primary section-title">Отправки FBS и FBO</h2>
+              <p class="text-xs text-ink-secondary mt-0.5">
+                Резерв и отгрузка заказов FBS, поставки на маркетплейс по FBO и обработка нехватки на ФФ.
+              </p>
+            </div>
+          </div>
+
+          <button type="button" onclick="triggerDemoShortageScenario()"
+            class="btn-fluid px-3 py-1.5 rounded-xl bg-terra-50 hover:bg-terra-100 text-terra-700 border border-terra-100 text-xs font-semibold"
+            title="Запросить больше товара, чем доступно на выбранном ФФ, при достаточном общем остатке">
+            Сценарий нехватки на ФФ
+          </button>
+        </div>
+
+        <!-- 3.1. FBS Orders (Reserve -> Ship or Cancel) -->
+        <div class="bg-paper-subtle rounded-xl p-4 border border-paper-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase eyebrow-track text-forest-700">Заказы FBS (Резерв · Отправка · Отмена)</h3>
+            <span class="text-[11px] text-ink-muted">Блокирует товар на ФФ до отправки</span>
+          </div>
+
+          <form onsubmit="handleCreateFBSReserve(event)" class="space-y-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div class="sm:col-span-5">
+                <label for="fbs-product" class="block text-[11px] font-medium text-ink-secondary mb-1">Артикул</label>
+                <select id="fbs-product" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="sm:col-span-4">
+                <label for="fbs-warehouse" class="block text-[11px] font-medium text-ink-secondary mb-1">Склад ФФ</label>
+                <select id="fbs-warehouse" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="sm:col-span-3">
+                <label for="fbs-qty" class="block text-[11px] font-medium text-ink-secondary mb-1">Кол-во (шт.)</label>
+                <input id="fbs-qty" type="number" min="1" value="4" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white num-tabular" />
+              </div>
+            </div>
+            <input id="fbs-note" type="text" placeholder="Номер клиентского заказа / комментарий (опционально)"
+              class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white" />
+            <button type="submit" class="btn-fluid w-full py-2 rounded-xl bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold">
+              Зарезервировать под заказ FBS
+            </button>
+          </form>
+
+          <div class="pt-1">
+            <div class="text-[11px] font-medium text-ink-secondary mb-1.5">Резервы и отправки FBS:</div>
+            <div id="fbs-orders-list" class="space-y-1.5 max-h-56 overflow-y-auto clean-scroll pr-0.5"></div>
+          </div>
+        </div>
+
+        <!-- 3.2. FBO Shipments (Send -> In Transit -> Receive on Marketplace) -->
+        <div class="bg-paper-subtle rounded-xl p-4 border border-paper-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase eyebrow-track text-forest-700">Поставки на маркетплейс по FBO</h3>
+            <span class="text-[11px] text-ink-muted">Покидает ФФ · В пути до приёмки</span>
+          </div>
+
+          <form onsubmit="handleCreateFBOShipment(event)" class="space-y-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div class="sm:col-span-5">
+                <label for="fbo-product" class="block text-[11px] font-medium text-ink-secondary mb-1">Артикул</label>
+                <select id="fbo-product" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="sm:col-span-4">
+                <label for="fbo-warehouse" class="block text-[11px] font-medium text-ink-secondary mb-1">Со склада ФФ</label>
+                <select id="fbo-warehouse" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white"></select>
+              </div>
+              <div class="sm:col-span-3">
+                <label for="fbo-qty" class="block text-[11px] font-medium text-ink-secondary mb-1">Кол-во (шт.)</label>
+                <input id="fbo-qty" type="number" min="1" value="3" required class="w-full rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white num-tabular" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input id="fbo-marketplace" type="text" value="WB Коледино FBO"
+                class="rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white" />
+              <input id="fbo-note" type="text" placeholder="Комментарий к поставке FBO"
+                class="rounded-xl border border-paper-borderStrong px-2.5 py-1.5 text-xs bg-white" />
+            </div>
+            <button type="submit" class="btn-fluid w-full py-2 rounded-xl bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold">
+              Отправить поставку по FBO
+            </button>
+          </form>
+
+          <div class="pt-1">
+            <div class="text-[11px] font-medium text-ink-secondary mb-1.5">Отправки по FBO:</div>
+            <div id="fbo-shipments-list" class="space-y-1.5 max-h-56 overflow-y-auto clean-scroll pr-0.5"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Operation History Ledger -->
+    <section class="bg-white rounded-2xl border border-paper-border overflow-hidden">
+      <div class="px-5 py-4 border-b border-paper-border flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-ink-primary section-title">История операций</h2>
+          <p class="text-xs text-ink-secondary mt-0.5">
+            Видно, какой товар, сколько единиц, откуда и куда переместилось. Остатки сходятся после каждого действия, а повторное подтверждение не списывает товар дважды.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="filter-op-sku" onchange="renderOperationsTable()" class="rounded-xl border border-paper-borderStrong px-3 py-1.5 text-xs bg-paper-subtle text-ink-primary">
+            <option value="">Все артикулы</option>
+          </select>
+          <select id="filter-op-type" onchange="renderOperationsTable()" class="rounded-xl border border-paper-borderStrong px-3 py-1.5 text-xs bg-paper-subtle text-ink-primary">
+            <option value="">Все типы операций</option>
+            <option value="RECEIPT">Приход на ФФ</option>
+            <option value="TRANSFER_SENT">Отправка перемещения</option>
+            <option value="TRANSFER_RECEIVED">Приёмка перемещения</option>
+            <option value="FBS_RESERVED">Резерв FBS</option>
+            <option value="FBS_SHIPPED">Отправка FBS клиенту</option>
+            <option value="FBS_CANCELLED">Отмена резерва FBS</option>
+            <option value="FBO_SENT">Отправка FBO</option>
+            <option value="FBO_RECEIVED">Приёмка FBO</option>
+            <option value="WAREHOUSE_ARCHIVE_TRANSFER">Перевод с архивного ФФ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto max-h-96 clean-scroll">
+        <table class="w-full text-xs text-left border-collapse num-tabular">
+          <thead class="bg-forest-50 text-forest-800 text-[11px] uppercase eyebrow-track sticky top-0 border-b border-paper-border">
+            <tr>
+              <th class="px-4 py-2.5 font-semibold">№</th>
+              <th class="px-4 py-2.5 font-semibold">Время</th>
+              <th class="px-4 py-2.5 font-semibold">Операция</th>
+              <th class="px-4 py-2.5 font-semibold">Артикул · Товар</th>
+              <th class="px-4 py-2.5 font-semibold text-right">Кол-во</th>
+              <th class="px-4 py-2.5 font-semibold">Откуда</th>
+              <th class="px-4 py-2.5 font-semibold">Куда / Статус</th>
+              <th class="px-4 py-2.5 font-semibold">Документ · Примечание</th>
+            </tr>
+          </thead>
+          <tbody id="operations-table-body" class="divide-y divide-paper-border"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    window.__INITIAL_STATE__ = {{ initial_state | tojson }};
+  </script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
